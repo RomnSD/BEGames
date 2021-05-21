@@ -8,7 +8,7 @@ import com.wskey.server.WebSocketClient;
 import com.wskey.server.WebSocketEndpoint;
 import com.wskey.server.WebSocketServer;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 
 
 /**
@@ -18,8 +18,8 @@ public class GameManager extends WebSocketEndpoint
 {
 
     protected WebSocketServer server;
-    protected LinkedHashMap<String, Game> games = new LinkedHashMap<>();
-    protected LinkedHashMap<String, Player> players = new LinkedHashMap<>();
+    protected HashMap<String, Game> games = new HashMap<>();
+    protected HashMap<String, Player> players = new HashMap<>();
 
     public static Gson GSON = new Gson();
 
@@ -63,15 +63,25 @@ public class GameManager extends WebSocketEndpoint
     }
 
 
+    /**
+     * @param player Player
+     */
     public void addPlayer(Player player)
     {
         players.putIfAbsent(player.getClient().getClientID(), player);
     }
 
 
+    /**
+     * @param player String
+     * @return       Player
+     */
     public Player getPlayer(String player) { return players.get(player); }
 
 
+    /**
+     * @param player String
+     */
     public void removePlayer(String player) { players.remove(player); }
 
 
@@ -93,13 +103,6 @@ public class GameManager extends WebSocketEndpoint
 
         if (player == null)
             return;
-
-/*        Event event = GSON.fromJson(((TextFrame) frame).data, Event.class);
-
-        if (event.name == null || event.data == null)
-            return;
-
-        event.sender = player;*/
     }
 
 

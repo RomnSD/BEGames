@@ -1,51 +1,84 @@
 package com.wskey.game;
 
 import com.wskey.game.entities.Player;
+import com.wskey.game.team.Team;
 import com.wskey.protocol.Frame;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 
+
+/**
+ * @author RomnSD
+ */
 public abstract  class Match
 {
 
-    protected int maxPlayers;
-    protected int status = STATUS_WAITING;
+    protected Config config;
+    protected MatchStatus matchStatus = MatchStatus.Waiting;
+    protected PlayerStatus slotsStatus = PlayerStatus.NeedForPlayers;
+    protected HashMap<Integer, Team> teams = new HashMap<>();
 
-    protected LinkedHashMap<Integer, Team> teams = new LinkedHashMap<>();
+    enum MatchStatus {
+        Waiting,
+        Beginning,
+        Running
+    }
 
-    public static int STATUS_WAITING  = 0x01;
-    public static int STATUS_STARTING = 0x02;
-    public static int STATUS_RUNNING  = 0x03;
+    enum PlayerStatus {
+        NeedForPlayers,
+        Full
+    }
 
+
+    /**
+     * @param config Config
+     */
+    public Match(Config config) { this.config = config; }
+
+
+    /**
+     * @return Config
+     */
+    public Config getConfig() { return config; }
+
+
+    /**
+     * @return int
+     */
     public int getPlayerCount()
     {
         int count = 0;
 
         for (Team team : teams.values())
-            count += team.members.size();
+            count += team.getSize();
 
         return count;
     }
 
-    public boolean canJoin()
-    {
-        return status != STATUS_RUNNING && getPlayerCount() < maxPlayers;
-    }
 
+    /**
+     * @return boolean
+     */
+    public boolean canJoin() { return !matchStatus.equals(MatchStatus.Running) && slotsStatus.equals(PlayerStatus.NeedForPlayers); }
+
+
+    /**
+     * @param player Player
+     */
     public void addPlayer(Player player)
     {
-        if (getPlayerCount() >= maxPlayers)
+        if (slotsStatus.equals(PlayerStatus.Full))
             return;
 
         Team freeTeam= null;
 
         for (Team team : teams.values()) {
-            ///
+            //
         }
 
         if (freeTeam == null) {
-            freeTeam = new Team();
-            teams.put(freeTeam.teamID, freeTeam);
+            freeTeam = new Team(config.playersPerTeam);
+            //teams.put(freeTeam.teamID, freeTeam);
         }
 
         player.setTeam(freeTeam);

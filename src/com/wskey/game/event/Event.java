@@ -1,21 +1,25 @@
-package com.wskey.game;
+package com.wskey.game.event;
 
-import com.wskey.game.entities.Player;
 
+/**
+ * @author RomnSD
+ */
 public class Event
 {
 
     public String name;
     public String data;
-    public Player sender;
 
+
+    /**
+     * @param name String
+     * @param data String
+     */
     public Event(String name, String data)
     {
         this.name = name;
         this.data = data;
     }
-
-
 
 
 }
