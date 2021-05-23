@@ -1,6 +1,10 @@
 package com.wskey.game.event;
 
 
+import com.google.gson.JsonObject;
+import com.wskey.game.GameManager;
+
+
 /**
  * @author RomnSD
  */
@@ -8,9 +12,16 @@ public class Event
 {
 
     public String name;
-    public String data;
+    public JsonObject data;
+    
+    
+    public Event(String name, JsonObject data)
+    {
+        this.name = name;
+        this.data = data;
+    }
 
-
+    
     /**
      * @param name String
      * @param data String
@@ -18,8 +29,18 @@ public class Event
     public Event(String name, String data)
     {
         this.name = name;
-        this.data = data;
+        this.data = GameManager.GSON.fromJson(data, JsonObject.class);
     }
-
-
+    
+    
+    /**
+     * @return String 
+     */
+    public String json()
+    {
+        data.addProperty("name", name);
+        return GameManager.GSON.toJson(data);
+    }
+    
+    
 }

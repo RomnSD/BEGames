@@ -1,7 +1,7 @@
 package com.wskey.game.entities;
 
 import com.wskey.game.Game;
-import com.wskey.game.team.Team;
+import com.wskey.game.Session;
 import com.wskey.server.WebSocketClient;
 
 
@@ -13,8 +13,7 @@ public class Player extends Entity
 
     protected WebSocketClient client;
     protected Game game;
-    protected Team team;
-
+    protected Session gameSession;
     protected boolean closed;
 
 
@@ -30,16 +29,24 @@ public class Player extends Entity
     /**
      * @return WebSocketClient
      */
-    public WebSocketClient getClient()
-    {
-        return client;
-    }
+    public WebSocketClient getClient() { return client; }
+    
+    
+    /**
+     * @return boolean 
+     */
+    public boolean isLogged() { return client.getUsername() != null; }
 
 
     /**
      * @param game Game
      */
-    public void setGame(Game game) { this.game = game; }
+    public void setGame(Game game)
+    {
+        //if (game == null && this.game != null)
+            //this.game.
+        this.game = game;
+    }
 
 
     /**
@@ -51,25 +58,19 @@ public class Player extends Entity
     /**
      * @param team Team
      */
-    public void setTeam(Team team) {
-        this.team = team;
-    }
+    public void setGameSession(Session session) { gameSession = session; }
 
 
     /**
      * @return Team
      */
-    public Team getTeam() {
-        return team;
-    }
+    public Session getGameSession() { return gameSession; }
 
 
     /**
      * @return boolean
      */
-    public boolean isClosed() {
-        return closed;
-    }
+    public boolean isClosed() { return closed; }
 
 
     public void close()

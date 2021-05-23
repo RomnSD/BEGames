@@ -16,9 +16,13 @@ public class WebSocketClient
     protected SocketChannel socket;
     protected WebSocketEndpoint endpoint;
     protected String clientID;
+    protected String username;
 
     protected long pingTime = 0L;
     protected boolean closed = false;
+    
+    protected int messagesPerSecond = 0;
+    protected long lastSpamCheck = 0;
 
     protected static int COUNTER = 0;
     protected static Random RANDOM = new Random();
@@ -52,6 +56,18 @@ public class WebSocketClient
      * @return String 
      */
     public String getClientID() { return clientID; }
+    
+    
+    /**
+     * @return String 
+     */
+    public String getUsername() { return username; }
+    
+    
+    /**
+     * @param username String 
+     */
+    public void setUsername(String username) { this.username = username; }
 
 
     /**
@@ -70,7 +86,15 @@ public class WebSocketClient
     }
 
 
-    public void sendClose(short code, String message) { sendMessage(new CloseFrame(code, message));}
+    /**
+     * @param code    short
+     * @param message String 
+     */
+    public void sendClose(short code, String message)
+    {
+        sendMessage(new CloseFrame(code, message));
+        close();
+    }
 
 
     /**
@@ -92,7 +116,7 @@ public class WebSocketClient
      */
     public void handleFrame(Frame frame)
     {
-        if (closed)
+        if (closed || isSpam())
             return;
 
         if (frame instanceof PingFrame)
@@ -113,6 +137,31 @@ public class WebSocketClient
         }
 
         endpoint.onData(frame, this);
+    }
+    
+    
+    /**
+     * @return boolean
+     */
+    public boolean isSpam()
+    {
+        long now = System.currentTimeMillis();
+        
+        if ((now - lastSpamCheck) >= 1000) {
+            lastSpamCheck = now;
+            messagesPerSecond = 0;
+            return false;
+        }
+        
+        messagesPerSecond += 1;
+        
+        if (messagesPerSecond > 60) {
+            endpoint.getServer().blockIP(socket.getRemoteAddress().toString().split(":")[0], (now + 600000), "Spam " + messagesPerSecond);
+            close();
+            return true;
+        }
+        
+        return false;
     }
 
 
@@ -138,8 +187,6 @@ public class WebSocketClient
 
     public void close()
     {
-        sendClose((short) 1, "");
-
         closed = true;
         endpoint.onQuit(this);
         endpoint.getServer().closeClient(this);

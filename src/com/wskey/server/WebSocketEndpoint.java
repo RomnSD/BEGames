@@ -22,9 +22,7 @@ public abstract class WebSocketEndpoint
     /**
      * @return String
      */
-    public String getRoute() {
-        return route;
-    }
+    public String getRoute() { return route; }
 
 
     /**

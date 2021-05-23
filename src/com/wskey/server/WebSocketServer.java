@@ -1,6 +1,8 @@
 package com.wskey.server;
 
 import com.wskey.protocol.Frame;
+import com.wskey.protocol.types.CloseFrame;
+import com.wskey.protocol.types.TextFrame;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -10,12 +12,14 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.List;
-import java.util.LinkedList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.security.MessageDigest;
 
 
 /**
@@ -27,9 +31,11 @@ public class WebSocketServer implements Runnable
     protected SocketAddress address;
     protected ServerSocketChannel socketChannel;
 
-    protected LinkedList<String> acceptedHosts;
-    protected LinkedHashMap<String, WebSocketEndpoint> endpoints = new LinkedHashMap<>();
-    protected LinkedHashMap<String, WebSocketClient> clients = new LinkedHashMap<>();
+    protected List<String> acceptedHosts;
+    protected HashMap<String, WebSocketEndpoint> endpoints = new HashMap<>();
+    protected ConcurrentHashMap<String, WebSocketClient> clients = new ConcurrentHashMap<>();
+    protected HashMap<String, Integer> connections = new HashMap<>();
+    protected HashMap<String, Long> blockedAddresses = new HashMap<>();
 
     protected Thread thread;
     protected boolean closed = false;
@@ -50,13 +56,13 @@ public class WebSocketServer implements Runnable
     /**
      * @param hosts LinkedList<String>
      */
-    public void setAcceptedHosts(LinkedList<String> hosts) { acceptedHosts = hosts; }
+    public void setAcceptedHosts(List<String> hosts) { acceptedHosts = hosts; }
 
 
     /**
      * @return LinkedList<String>
      */
-    public LinkedList<String> getAcceptedHosts() { return acceptedHosts; }
+    public List<String> getAcceptedHosts() { return acceptedHosts; }
 
 
     /**
@@ -149,9 +155,10 @@ public class WebSocketServer implements Runnable
             exception.printStackTrace();
         }
 
-        for (WebSocketClient client : clients.values()) {
-            client.close();
-        }
+        Iterator<WebSocketClient> iterator = clients.values().iterator();
+        
+        while(iterator.hasNext())
+            iterator.next().sendClose(CloseFrame.SHUTDOWN, "See you later!");
     }
 
 
@@ -166,7 +173,15 @@ public class WebSocketServer implements Runnable
         try {
             SocketChannel   channel = (SocketChannel) key.channel();
             WebSocketClient client  = clients.get(channel.getRemoteAddress().toString());
-            ByteBuffer      buffer  = ByteBuffer.allocate(1024);
+            
+            if (client == null) {
+                String address = channel.getRemoteAddress().toString().split(":")[0];
+                
+                if (isBlocked(address) || checkForBots(address))
+                    return false;
+            }
+            
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
 
             if (channel.read(buffer) <= 0)
                 return false;
@@ -179,12 +194,12 @@ public class WebSocketServer implements Runnable
             Frame frame = Frame.decodeRawFrame(buffer);
 
             if (frame == null) {
-                client.close();
+                client.sendClose(CloseFrame.UNEXPECTED_BEHAVIOR, "What is it?");
                 return false;
             }
-
+            
             client.handleFrame(frame);
-
+            
             return true;
         } catch (Throwable exception) { exception.printStackTrace(); }
 
@@ -214,6 +229,52 @@ public class WebSocketServer implements Runnable
             client.getSocketChannel().close();
         } catch (Throwable exception) { exception.printStackTrace(); }
     }
+    
+    
+    /**
+     * @param ip     String 
+     * @param ms     long 
+     * @param reason String 
+     */
+    public void blockIP(String ip, long ms, String reason)
+    {
+        blockedAddresses.put(ip, ms);
+        System.out.println("Address " + ip + " has been blocked for " + ms + "ms, reason: " + reason);
+    }
+    
+    
+    /**
+     * @param ip String 
+     * @return   boolean 
+     */
+    public boolean isBlocked(String ip)
+    {
+        long time = blockedAddresses.getOrDefault(ip, 0L);
+        
+        if (time == 0L)
+            return false;
+    
+        if ((time - System.currentTimeMillis()) > 0L)
+            return true;
+        
+        blockedAddresses.remove(ip);
+        return false;
+    }
+    
+    
+    public boolean checkForBots(String ip)
+    {
+        int count = connections.getOrDefault(ip, 0) + 1;
+        
+        if (count >= 15) {
+            // Maybe instead of blocking the IP i could cancel new connections?
+            blockIP(ip, (System.currentTimeMillis() + 600000), "Too many connections using the same IP.");
+            return true;
+        }
+        
+        connections.put(ip, count);
+        return false;
+    }
 
 
     /**
@@ -223,7 +284,7 @@ public class WebSocketServer implements Runnable
      */
     protected boolean acceptNewClient(SocketChannel socket, String request)
     {
-        LinkedHashMap<String, String> headers = WebSocketServer.parseRawRequest(request);
+        HashMap<String, String> headers = WebSocketServer.parseRawRequest(request);
 
         if (!headers.get("Connection").equals("Upgrade") && !headers.get("Upgrade").equals("websocket"))
             return false;
@@ -262,11 +323,11 @@ public class WebSocketServer implements Runnable
 
     /**
      * @param request String
-     * @return        LinkedHashMap<String, String>
+     * @return        HashMap<String, String>
      */
-    protected static LinkedHashMap<String, String> parseRawRequest(String request)
+    protected static HashMap<String, String> parseRawRequest(String request)
     {
-        LinkedHashMap<String, String> headers = new LinkedHashMap<>();
+        HashMap<String, String> headers = new HashMap<>();
 
         if (request.isEmpty())
             return headers;
@@ -295,6 +356,25 @@ public class WebSocketServer implements Runnable
         }
 
         return headers;
+    }
+    
+    
+    /**
+     * Return a read-only map of clients.
+     * @return Map<String, WebSocketClient>
+     */
+    public Map<String, WebSocketClient> getClients() { return clients; } 
+    
+    
+    /**
+     * @param consumer Consumer<WebSocketClient>
+     */
+    public void consumeAll(Consumer<WebSocketClient> consumer)
+    {
+        Iterator<WebSocketClient> iterator = clients.values().iterator();
+        
+        while (iterator.hasNext())
+            consumer.accept(iterator.next());
     }
 
 

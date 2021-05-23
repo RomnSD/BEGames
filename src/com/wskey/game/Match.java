@@ -5,6 +5,7 @@ import com.wskey.game.team.Team;
 import com.wskey.protocol.Frame;
 
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -14,17 +15,20 @@ public abstract  class Match
 {
 
     protected Config config;
+    protected int matchID = COUNTER.getAndIncrement();
     protected MatchStatus matchStatus = MatchStatus.Waiting;
     protected PlayerStatus slotsStatus = PlayerStatus.NeedForPlayers;
     protected HashMap<Integer, Team> teams = new HashMap<>();
+    
+    public static AtomicInteger COUNTER = new AtomicInteger();
 
-    enum MatchStatus {
+    public enum MatchStatus {
         Waiting,
         Beginning,
         Running
     }
 
-    enum PlayerStatus {
+    public enum PlayerStatus {
         NeedForPlayers,
         Full
     }
@@ -34,6 +38,12 @@ public abstract  class Match
      * @param config Config
      */
     public Match(Config config) { this.config = config; }
+    
+    
+    /**
+     * @return int 
+     */
+    public int getMatchID() { return matchID; }
 
 
     /**
@@ -54,6 +64,18 @@ public abstract  class Match
 
         return count;
     }
+    
+    
+    /**
+     * @return boolean 
+     */
+    public boolean isEmpty()
+    {
+        for (Team team : teams.values()) {
+            if (team.getSize() != 0) return false;
+        }
+        return true;
+    }
 
 
     /**
@@ -65,26 +87,29 @@ public abstract  class Match
     /**
      * @param player Player
      */
-    public void addPlayer(Player player)
+    public boolean addPlayer(Player player)
     {
         if (slotsStatus.equals(PlayerStatus.Full))
-            return;
+            return false;
 
         Team freeTeam= null;
 
         for (Team team : teams.values()) {
-            //
+            if (!team.isFull()) {
+                freeTeam = team;
+                break;
+            }
         }
 
-        if (freeTeam == null) {
-            freeTeam = new Team(config.playersPerTeam);
-            //teams.put(freeTeam.teamID, freeTeam);
-        }
+        if (freeTeam == null)
+            return false;
 
-        player.setTeam(freeTeam);
-        freeTeam.addMember(player);
+        player.setGameSession(freeTeam.openSession(player));
+        
+        return player.getGameSession() != null;
     }
 
+    
     public abstract void update();
     public abstract void handleFrame(Frame frame, Player player);
 

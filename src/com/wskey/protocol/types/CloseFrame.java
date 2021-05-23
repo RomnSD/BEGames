@@ -15,6 +15,10 @@ public class CloseFrame extends Frame
 
     public short code;
     public String reason;
+    
+    public static short SHUTDOWN = 1001;
+    public static short WRONG_FRAME = 1003;
+    public static short UNEXPECTED_BEHAVIOR = 1011;
 
 
     public CloseFrame() { }

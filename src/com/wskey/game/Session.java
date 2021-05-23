@@ -1,19 +1,20 @@
-package com.wskey.game.team;
+package com.wskey.game;
 
 import com.wskey.game.entities.Player;
+import com.wskey.game.team.Team;
 
 
 /**
  * @author RomnSD
  */
-public class TeamMember
+public class Session
 {
 
     protected Team team;
     protected Player player;
     protected Status status;
 
-    enum Status {
+    public enum Status {
         Spectating,
         Alive,
         Death
@@ -25,12 +26,19 @@ public class TeamMember
      * @param player Player
      * @param status Status
      */
-    public TeamMember(Team team, Player player, Status status)
+    public Session(Team team, Player player, Status status)
     {
         this.team   = team;
         this.player = player;
         this.status = status;
     }
+    
+    
+    /**
+     * Return this session current team
+     * @return 
+     */
+    public Team getTeam() { return team; } 
 
 
     /**

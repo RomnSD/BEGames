@@ -1,9 +1,11 @@
 package com.wskey.game.team;
 
+import com.wskey.game.Session;
 import com.wskey.game.entities.Player;
 
 import java.util.HashMap;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -12,11 +14,11 @@ import java.util.function.Consumer;
 public class Team
 {
 
-    protected Integer teamID = COUNTER++;
-    protected HashMap<String, TeamMember> members = new HashMap<>();
+    protected int teamID = COUNTER.getAndIncrement();
+    protected HashMap<String, Session> members = new HashMap<>();
     protected int teamSize;
 
-    protected static int COUNTER = 0;
+    protected static AtomicInteger COUNTER = new AtomicInteger();
 
 
     /**
@@ -44,7 +46,7 @@ public class Team
      * @param player Player
      * @return       TeamMember
      */
-    public TeamMember addMember(Player player) { return addMember(player, TeamMember.Status.Alive); }
+    public Session openSession(Player player) { return openSession(player, Session.Status.Alive); }
 
 
     /**
@@ -52,21 +54,27 @@ public class Team
      * @param status TeamMember.Status
      * @return       TeamMember
      */
-    public TeamMember addMember(Player player, TeamMember.Status status)
+    public Session openSession(Player player, Session.Status status)
     {
-        if (members.size() >= teamSize && !status.equals(TeamMember.Status.Spectating))
+        if (members.size() >= teamSize && !status.equals(Session.Status.Spectating))
             return null;
 
-        if (player.getTeam() != null || members.containsKey(player.getClient().getClientID()))
+        if (player.getGameSession() != null || members.containsKey(player.getClient().getClientID()))
             return null;
 
-        return members.put(player.getClient().getClientID(), new TeamMember(this, player, status));
+        return members.put(player.getClient().getClientID(), new Session(this, player, status));
     }
+    
+    
+    /**
+     * @return boolean
+     */
+    public boolean isFull() { return getSize() >= teamSize;
 
 
     /**
      * @param player String
-     * @return       boolean
+     * @return       boolean 
      */
     public boolean isMember(String player) { return getMember(player) != null; }
 
@@ -75,7 +83,7 @@ public class Team
      * @param player String
      * @return       TeamMember
      */
-    public TeamMember getMember(String player) { return members.get(player); }
+    public Session getMember(String player) { return members.get(player); }
 
 
     /**
@@ -89,9 +97,12 @@ public class Team
     }
 
 
-    public void consumeAll(Consumer<TeamMember> consumer)
+    /**
+     * @param consumer Consumer<Session>
+     */
+    public void consumeAll(Consumer<Session> consumer)
     {
-        for (TeamMember member : members.values())
+        for (Session member : members.values())
             consumer.accept(member);
     }
 
